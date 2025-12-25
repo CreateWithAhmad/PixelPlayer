@@ -174,7 +174,6 @@ fun FullPlayerContent(
     var showSongInfoBottomSheet by remember { mutableStateOf(false) }
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
-    var showShareSheet by remember { mutableStateOf(false) }
     var showArtistPicker by rememberSaveable { mutableStateOf(false) }
     val stablePlayerState by playerViewModel.stablePlayerState.collectAsState()
     val lyricsSearchUiState by playerViewModel.lyricsSearchUiState.collectAsState()
@@ -895,7 +894,6 @@ private fun SongMetadataDisplaySection(
     playerViewModel: PlayerViewModel,
     onClickLyrics: () -> Unit,
     onShareClick: () -> Unit,
-    onClickShare: () -> Unit,
     showQueueButton: Boolean,
     onClickQueue: () -> Unit,
     onClickArtist: () -> Unit,
@@ -976,22 +974,7 @@ private fun SongMetadataDisplaySection(
                         tint = LocalMaterialTheme.current.primary
                     )
                 }
-
-                // Share (QR) button
-                Box(
-                    modifier = Modifier
-                        .size(height = 42.dp, width = 50.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(LocalMaterialTheme.current.onPrimary)
-                        .clickable { onClickShare() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Rounded.Share,
-                        contentDescription = "Share",
-                        tint = LocalMaterialTheme.current.primary
-                    )
-                }
+                
 
                 Box(
                     modifier = Modifier
