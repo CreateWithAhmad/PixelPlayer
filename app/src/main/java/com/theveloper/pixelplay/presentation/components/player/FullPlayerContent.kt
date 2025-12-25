@@ -829,15 +829,27 @@ fun FullPlayerContent(
         enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
     ) {
+        // Share only the current song (single-song invite). Also enable LAN sync while sharing.
         val inviteJson = run {
-            val ids = currentPlaybackQueue.mapNotNull { it.id }
-            val songsArray = ids.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
-            "{\"source\":\"${currentQueueSourceName}\",\"songs\":$songsArray}"
+            val songId = song.id ?: ""
+            playerViewModel.generateSongInvite(songId, includeSync = true)
+        }
+
+        // start broadcasting sync events while share sheet is visible
+        LaunchedEffect(showShareSheet) {
+            if (showShareSheet) {
+                playerViewModel.startSyncHost()
+            } else {
+                playerViewModel.stopSyncHost()
+            }
         }
 
         ShareQRCodeSheet(
             inviteString = inviteJson,
-            onClose = { showShareSheet = false }
+            onClose = {
+                showShareSheet = false
+                playerViewModel.stopSyncHost()
+            }
         )
     }
 
@@ -929,79 +941,36 @@ private fun SongMetadataDisplaySection(
                 .width(8.dp)
         )
 
-        if (showQueueButton) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+        // Lyrics and Share buttons (both portrait and landscape)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledIconButton(
+                modifier = Modifier
+                    .size(width = 48.dp, height = 48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = LocalMaterialTheme.current.onPrimary,
+                    contentColor = LocalMaterialTheme.current.primary
+                ),
+                onClick = onClickLyrics,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(height = 42.dp, width = 50.dp)
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = 50.dp,
-                                topEnd = 6.dp,
-                                bottomStart = 50.dp,
-                                bottomEnd = 6.dp
-                            )
-                        )
-                        .background(LocalMaterialTheme.current.onPrimary)
-                        .clickable { onClickLyrics() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.rounded_lyrics_24),
-                        contentDescription = "Lyrics",
-                        tint = LocalMaterialTheme.current.primary
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(height = 42.dp, width = 50.dp)
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = 6.dp,
-                                topEnd = 50.dp,
-                                bottomStart = 6.dp,
-                                bottomEnd = 50.dp
-                            )
-                        )
-                        .background(LocalMaterialTheme.current.onPrimary)
-                        .clickable { onShareClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.material3.Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Rounded.Share,
-                        contentDescription = "Share playlist",
-                        tint = LocalMaterialTheme.current.primary
-                    )
-                }
-                
-
-                Box(
-                    modifier = Modifier
-                        .size(height = 42.dp, width = 50.dp)
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = 6.dp,
-                                topEnd = 50.dp,
-                                bottomStart = 6.dp,
-                                bottomEnd = 50.dp
-                            )
-                        )
-                        .background(LocalMaterialTheme.current.onPrimary)
-                        .clickable { onClickQueue() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.rounded_queue_music_24),
-                        contentDescription = "Queue",
-                        tint = LocalMaterialTheme.current.primary
-                    )
-                }
+                Icon(
+                    painter = painterResource(R.drawable.rounded_lyrics_24),
+                    contentDescription = "Lyrics"
+                )
             }
-        } else {
-            // Portrait Mode: Lyrics and Share buttons (Queue is in TopBar)
-            Row(modifier = Modifier.weight(0.15f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+
+            FilledIconButton(
+                modifier = Modifier
+                    .size(width = 48.dp, height = 48.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = LocalMaterialTheme.current.onPrimary,
+                    contentColor = LocalMaterialTheme.current.primary
+                ),
+                onClick = onShareClick,
+            ) {
+                Icon(imageVector = androidx.compose.material.icons.Icons.Rounded.Share, contentDescription = "Share")
+            }
+
+            if (showQueueButton) {
                 FilledIconButton(
                     modifier = Modifier
                         .size(width = 48.dp, height = 48.dp),
@@ -1009,24 +978,12 @@ private fun SongMetadataDisplaySection(
                         containerColor = LocalMaterialTheme.current.onPrimary,
                         contentColor = LocalMaterialTheme.current.primary
                     ),
-                    onClick = onClickLyrics,
+                    onClick = onClickQueue,
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.rounded_lyrics_24),
-                        contentDescription = "Lyrics"
+                        painter = painterResource(R.drawable.rounded_queue_music_24),
+                        contentDescription = "Queue"
                     )
-                }
-
-                FilledIconButton(
-                    modifier = Modifier
-                        .size(width = 44.dp, height = 44.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = LocalMaterialTheme.current.onPrimary,
-                        contentColor = LocalMaterialTheme.current.primary
-                    ),
-                    onClick = onShareClick,
-                ) {
-                    Icon(imageVector = androidx.compose.material.icons.Icons.Rounded.Share, contentDescription = "Share")
                 }
             }
         }

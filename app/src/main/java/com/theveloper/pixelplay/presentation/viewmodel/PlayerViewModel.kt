@@ -166,6 +166,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import org.json.JSONObject
+import com.theveloper.pixelplay.utils.MulticastSyncManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -510,10 +513,46 @@ class PlayerViewModel @Inject constructor(
         return "{\"source\":\"${state.currentQueueSourceName}\",\"songs\":$songsArray}"
     }
 
+    fun generateSongInvite(songId: String, includeSync: Boolean = true): String {
+        val syncPart = if (includeSync) ",\"sync\":{\"group\":\"224.0.2.60\",\"port\":51820}" else ""
+        return "{\"type\":\"song\",\"song\":\"$songId\"$syncPart}"
+    }
+
     suspend fun importPlaylistFromInvite(invite: String) {
         // Basic JSON parsing; expected format: {"source":"Name","songs":["id1","id2"]}
         try {
             val json = JSONObject(invite)
+            // If it's a single-song invite with optional sync info
+            val type = json.optString("type", "playlist")
+            if (type == "song") {
+                val songId = json.optString("song", null)
+                if (!songId.isNullOrBlank()) {
+                    // Try to find the Song by id in current state
+                    val allSongs = playerUiState.value.allSongs
+                    val found = allSongs.firstOrNull { it.id == songId }
+                    if (found != null) {
+                        // Play the shared song immediately
+                        showAndPlaySong(found)
+                    } else {
+                        // If not found, create a playlist fallback
+                        userPreferencesRepository.createPlaylist(name = "Shared: song", songIds = listOf(songId))
+                    }
+
+                    // If invite requests sync, start listening for commands
+                    val syncObj = json.optJSONObject("sync")
+                    if (syncObj != null) {
+                        val group = syncObj.optString("group", "224.0.2.60")
+                        val port = syncObj.optInt("port", 51820)
+                        // Start listening on this group/port
+                        MulticastSyncManager.startReceiving(viewModelScope, group, port) { cmd ->
+                            handleIncomingSyncCommand(cmd)
+                        }
+                    }
+
+                    sendToast("Imported shared song")
+                    return
+                }
+            }
             val source = json.optString("source", "Shared")
             val songsArray = json.optJSONArray("songs")
             if (songsArray == null || songsArray.length() == 0) {
@@ -538,6 +577,72 @@ class PlayerViewModel @Inject constructor(
         } catch (e: Exception) {
             sendToast("Failed to import invite: ${e.message}")
         }
+    }
+
+    private fun handleIncomingSyncCommand(cmd: String) {
+        // Commands are simple: "PLAY" or "PAUSE" or "STOP" or "SEEK:ms"
+        try {
+            when {
+                cmd.startsWith("PLAY") -> {
+                    // Play/resume
+                    playPauseIfNeeded(true)
+                }
+                cmd.startsWith("PAUSE") -> {
+                    playPauseIfNeeded(false)
+                }
+                cmd.startsWith("STOP") -> {
+                    mediaController?.pause()
+                }
+                cmd.startsWith("SEEK:") -> {
+                    val parts = cmd.split(":")
+                    val ms = parts.getOrNull(1)?.toLongOrNull()
+                    if (ms != null) seekTo(ms)
+                }
+            }
+        } catch (_: Throwable) {}
+    }
+
+    private fun playPauseIfNeeded(shouldPlay: Boolean) {
+        // A lightweight toggle: if shouldPlay and not playing -> play; if !shouldPlay and playing -> pause
+        val isCurrentlyPlaying = playerUiState.value.isPlaying
+        if (shouldPlay && !isCurrentlyPlaying) {
+            playPause()
+        } else if (!shouldPlay && isCurrentlyPlaying) {
+            playPause()
+        }
+    }
+
+    private var syncHostJob: Job? = null
+
+    fun startSyncHost(group: String = "224.0.2.60", port: Int = 51820) {
+        if (syncHostJob != null) return
+        syncHostJob = viewModelScope.launch {
+            var lastPlaying = playerUiState.value.isPlaying
+            // initial state broadcast
+            try {
+                val msg = if (lastPlaying) "PLAY" else "PAUSE"
+                MulticastSyncManager.sendNow(group, port, msg)
+            } catch (_: Throwable) {}
+
+            playerUiState.collect { state ->
+                val isPlaying = state.isPlaying
+                if (isPlaying != lastPlaying) {
+                    lastPlaying = isPlaying
+                    try {
+                        MulticastSyncManager.sendNow(group, port, if (isPlaying) "PLAY" else "PAUSE")
+                    } catch (_: Throwable) {}
+                }
+            }
+        }
+    }
+
+    fun stopSyncHost() {
+        syncHostJob?.cancel()
+        syncHostJob = null
+    }
+
+    fun stopSyncClient() {
+        MulticastSyncManager.stopReceiving()
     }
 
     // Last Library Tab Index

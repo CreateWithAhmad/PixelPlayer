@@ -2,8 +2,11 @@ package com.theveloper.pixelplay.presentation.components
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,6 +72,17 @@ fun ScanQrSheet(
         }
     )
 
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted ->
+            if (granted) {
+                cameraLauncher.launch(android.content.Intent(context, com.theveloper.pixelplay.QrScannerActivity::class.java))
+            } else {
+                resultText = "Camera permission denied"
+            }
+        }
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -79,7 +93,14 @@ fun ScanQrSheet(
         Text(text = "Scan QR Playlist", style = MaterialTheme.typography.titleLarge)
         Text(text = "Pick an image with a QR code or paste the invite string if you have it.", modifier = Modifier.padding(top = 8.dp))
 
-        Button(onClick = { cameraLauncher.launch(android.content.Intent(context, com.theveloper.pixelplay.QrScannerActivity::class.java)) }, modifier = Modifier.padding(top = 16.dp)) {
+        Button(onClick = {
+            val has = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+            if (has == PackageManager.PERMISSION_GRANTED) {
+                cameraLauncher.launch(android.content.Intent(context, com.theveloper.pixelplay.QrScannerActivity::class.java))
+            } else {
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        }, modifier = Modifier.padding(top = 16.dp)) {
             Text(text = "Scan with camera")
         }
 
