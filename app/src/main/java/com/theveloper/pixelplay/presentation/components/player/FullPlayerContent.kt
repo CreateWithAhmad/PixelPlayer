@@ -126,6 +126,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 import timber.log.Timber
 import kotlin.math.roundToLong
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Share
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -426,7 +428,6 @@ fun FullPlayerContent(
                 modifier = Modifier
                     .padding(start = 0.dp),
                 onClickLyrics = onLyricsClick,
-                onClickShare = onShareClick,
                 song = song,
                 currentSongArtists = currentSongArtists,
                 expansionFractionProvider = expansionFractionProvider,
@@ -1023,7 +1024,7 @@ private fun SongMetadataDisplaySection(
                         containerColor = LocalMaterialTheme.current.onPrimary,
                         contentColor = LocalMaterialTheme.current.primary
                     ),
-                    onClick = onClickShare,
+                    onClick = onShareClick,
                 ) {
                     Icon(imageVector = androidx.compose.material.icons.Icons.Rounded.Share, contentDescription = "Share")
                 }
