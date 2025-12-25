@@ -167,11 +167,11 @@ fun HomeGradientTopBar(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
-                    onClick = onScanQrClick
+                    onClick = onScanClick
                 ) {
                     Icon(
                         modifier = Modifier.size(18.dp),
-                        imageVector = androidx.compose.material.icons.Icons.Filled.CameraAlt,
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.QrCode,
                         contentDescription = "Scan QR"
                     )
                 }
@@ -182,10 +182,6 @@ fun HomeGradientTopBar(
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     onClick = onNavigationIconClick
-                    androidx.compose.material3.Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Rounded.QrCode,
-                        contentDescription = "Scan QR"
-                    )
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.rounded_settings_24),
