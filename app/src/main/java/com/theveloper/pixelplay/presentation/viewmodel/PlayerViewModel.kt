@@ -168,7 +168,6 @@ import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import com.theveloper.pixelplay.utils.MulticastSyncManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -604,7 +603,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun playPauseIfNeeded(shouldPlay: Boolean) {
         // A lightweight toggle: if shouldPlay and not playing -> play; if !shouldPlay and playing -> pause
-        val isCurrentlyPlaying = playerUiState.value.isPlaying
+        val isCurrentlyPlaying = stablePlayerState.value.isPlaying
         if (shouldPlay && !isCurrentlyPlaying) {
             playPause()
         } else if (!shouldPlay && isCurrentlyPlaying) {
@@ -617,14 +616,14 @@ class PlayerViewModel @Inject constructor(
     fun startSyncHost(group: String = "224.0.2.60", port: Int = 51820) {
         if (syncHostJob != null) return
         syncHostJob = viewModelScope.launch {
-            var lastPlaying = playerUiState.value.isPlaying
+            var lastPlaying = stablePlayerState.value.isPlaying
             // initial state broadcast
             try {
                 val msg = if (lastPlaying) "PLAY" else "PAUSE"
                 MulticastSyncManager.sendNow(group, port, msg)
             } catch (_: Throwable) {}
 
-            playerUiState.collect { state ->
+            stablePlayerState.collect { state ->
                 val isPlaying = state.isPlaying
                 if (isPlaying != lastPlaying) {
                     lastPlaying = isPlaying
