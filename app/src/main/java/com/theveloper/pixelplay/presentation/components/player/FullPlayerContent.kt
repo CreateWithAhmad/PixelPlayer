@@ -106,6 +106,7 @@ import com.theveloper.pixelplay.presentation.components.AlbumCarouselSection
 import com.theveloper.pixelplay.presentation.components.AutoScrollingTextOnDemand
 import com.theveloper.pixelplay.presentation.components.LocalMaterialTheme
 import com.theveloper.pixelplay.presentation.components.LyricsSheet
+import com.theveloper.pixelplay.presentation.components.ShareQRCodeSheet
 import com.theveloper.pixelplay.presentation.components.WavyMusicSlider
 import com.theveloper.pixelplay.presentation.components.scoped.DeferAt
 import com.theveloper.pixelplay.presentation.components.scoped.PrefetchAlbumNeighborsImg
@@ -172,6 +173,8 @@ fun FullPlayerContent(
     val song = currentSong ?: retainedSong ?: return // Keep the player visible while transitioning
     var showSongInfoBottomSheet by remember { mutableStateOf(false) }
     var showLyricsSheet by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
+    var showShareSheet by remember { mutableStateOf(false) }
     var showArtistPicker by rememberSaveable { mutableStateOf(false) }
     val stablePlayerState by playerViewModel.stablePlayerState.collectAsState()
     val lyricsSearchUiState by playerViewModel.lyricsSearchUiState.collectAsState()
@@ -232,6 +235,10 @@ fun FullPlayerContent(
             // Si hay letra, mostramos el sheet directamente
             showLyricsSheet = true
         }
+    }
+
+    val onShareClick = {
+        showShareSheet = true
     }
 
     if (showFetchLyricsDialog) {
@@ -420,6 +427,7 @@ fun FullPlayerContent(
                 modifier = Modifier
                     .padding(start = 0.dp),
                 onClickLyrics = onLyricsClick,
+                onClickShare = onShareClick,
                 song = song,
                 currentSongArtists = currentSongArtists,
                 expansionFractionProvider = expansionFractionProvider,
@@ -438,6 +446,10 @@ fun FullPlayerContent(
                     } else {
                         playerViewModel.triggerArtistNavigationFromPlayer(song.artistId)
                     }
+                }
+                ,
+                onShareClick = {
+                    showShareSheet = true
                 }
             )
         }
@@ -812,6 +824,23 @@ fun FullPlayerContent(
         )
     }
 
+    AnimatedVisibility(
+        visible = showShareSheet,
+        enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+    ) {
+        val inviteJson = run {
+            val ids = currentPlaybackQueue.mapNotNull { it.id }
+            val songsArray = ids.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+            "{\"source\":\"${currentQueueSourceName}\",\"songs\":$songsArray}"
+        }
+
+        ShareQRCodeSheet(
+            inviteString = inviteJson,
+            onClose = { showShareSheet = false }
+        )
+    }
+
     val artistPickerSheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     if (showArtistPicker && currentSongArtists.isNotEmpty()) {
         ModalBottomSheet(
@@ -865,6 +894,8 @@ private fun SongMetadataDisplaySection(
     gradientEdgeColor: Color,
     playerViewModel: PlayerViewModel,
     onClickLyrics: () -> Unit,
+    onShareClick: () -> Unit,
+    onClickShare: () -> Unit,
     showQueueButton: Boolean,
     onClickQueue: () -> Unit,
     onClickArtist: () -> Unit,
@@ -936,6 +967,44 @@ private fun SongMetadataDisplaySection(
                             )
                         )
                         .background(LocalMaterialTheme.current.onPrimary)
+                        .clickable { onShareClick() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.Share,
+                        contentDescription = "Share playlist",
+                        tint = LocalMaterialTheme.current.primary
+                    )
+                }
+
+                // Share (QR) button
+                Box(
+                    modifier = Modifier
+                        .size(height = 42.dp, width = 50.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(LocalMaterialTheme.current.onPrimary)
+                        .clickable { onClickShare() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.Share,
+                        contentDescription = "Share",
+                        tint = LocalMaterialTheme.current.primary
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(height = 42.dp, width = 50.dp)
+                        .clip(
+                            RoundedCornerShape(
+                                topStart = 6.dp,
+                                topEnd = 50.dp,
+                                bottomStart = 6.dp,
+                                bottomEnd = 50.dp
+                            )
+                        )
+                        .background(LocalMaterialTheme.current.onPrimary)
                         .clickable { onClickQueue() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -947,21 +1016,34 @@ private fun SongMetadataDisplaySection(
                 }
             }
         } else {
-            // Portrait Mode: Just the Lyrics button (Queue is in TopBar)
-            FilledIconButton(
-                modifier = Modifier
-                    .weight(0.15f)
-                    .size(width = 48.dp, height = 48.dp),
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = LocalMaterialTheme.current.onPrimary,
-                    contentColor = LocalMaterialTheme.current.primary
-                ),
-                onClick = onClickLyrics,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.rounded_lyrics_24),
-                    contentDescription = "Lyrics"
-                )
+            // Portrait Mode: Lyrics and Share buttons (Queue is in TopBar)
+            Row(modifier = Modifier.weight(0.15f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilledIconButton(
+                    modifier = Modifier
+                        .size(width = 48.dp, height = 48.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = LocalMaterialTheme.current.onPrimary,
+                        contentColor = LocalMaterialTheme.current.primary
+                    ),
+                    onClick = onClickLyrics,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.rounded_lyrics_24),
+                        contentDescription = "Lyrics"
+                    )
+                }
+
+                FilledIconButton(
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 44.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = LocalMaterialTheme.current.onPrimary,
+                        contentColor = LocalMaterialTheme.current.primary
+                    ),
+                    onClick = onClickShare,
+                ) {
+                    Icon(imageVector = androidx.compose.material.icons.Icons.Rounded.Share, contentDescription = "Share")
+                }
             }
         }
     }

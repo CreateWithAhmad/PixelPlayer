@@ -244,6 +244,9 @@ dependencies {
 
     implementation(libs.androidx.ui.text.google.fonts)
 
+    implementation("com.google.zxing:core:3.5.2")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
     implementation(libs.accompanist.drawablepainter)
     implementation(kotlin("test"))
 

@@ -92,6 +92,7 @@ fun HomeGradientTopBar(
     onNavigationIconClick: () -> Unit,
     onMoreOptionsClick: () -> Unit,
     onBetaClick: () -> Unit,
+    onScanClick: () -> Unit = {}
 ) {
     // 1) Pinta la status bar con el color surface
     val surfaceColor = MaterialTheme.colorScheme.surface
@@ -160,12 +161,31 @@ fun HomeGradientTopBar(
                         contentDescription = "Changelog"
                     )
                 }
+
+                FilledIconButton(
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    onClick = onScanQrClick
+                ) {
+                    Icon(
+                        modifier = Modifier.size(18.dp),
+                        imageVector = androidx.compose.material.icons.Icons.Filled.CameraAlt,
+                        contentDescription = "Scan QR"
+                    )
+                }
+
                 FilledIconButton(
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     onClick = onNavigationIconClick
+                    androidx.compose.material3.Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Rounded.QrCode,
+                        contentDescription = "Scan QR"
+                    )
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.rounded_settings_24),

@@ -503,6 +503,43 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    fun generatePlaylistInvite(): String {
+        val state = playerUiState.value
+        val ids = state.currentPlaybackQueue.mapNotNull { it.id }
+        val songsArray = ids.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+        return "{\"source\":\"${state.currentQueueSourceName}\",\"songs\":$songsArray}"
+    }
+
+    suspend fun importPlaylistFromInvite(invite: String) {
+        // Basic JSON parsing; expected format: {"source":"Name","songs":["id1","id2"]}
+        try {
+            val json = JSONObject(invite)
+            val source = json.optString("source", "Shared")
+            val songsArray = json.optJSONArray("songs")
+            if (songsArray == null || songsArray.length() == 0) {
+                sendToast("Invite contained no songs")
+                return
+            }
+
+            val songIds = mutableListOf<String>()
+            for (i in 0 until songsArray.length()) {
+                val v = songsArray.optString(i, null)
+                if (!v.isNullOrBlank()) songIds.add(v)
+            }
+
+            if (songIds.isEmpty()) {
+                sendToast("No recognized song IDs in invite")
+                return
+            }
+
+            val playlistName = "Shared: ${source}"
+            userPreferencesRepository.createPlaylist(name = playlistName, songIds = songIds)
+            sendToast("Imported playlist: $playlistName")
+        } catch (e: Exception) {
+            sendToast("Failed to import invite: ${e.message}")
+        }
+    }
+
     // Last Library Tab Index
     val lastLibraryTabIndexFlow: StateFlow<Int> =
         userPreferencesRepository.lastLibraryTabIndexFlow.stateIn(

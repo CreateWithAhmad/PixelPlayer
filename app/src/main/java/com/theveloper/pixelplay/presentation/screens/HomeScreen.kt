@@ -121,6 +121,7 @@ fun HomeScreen(
     var showOptionsBottomSheet by remember { mutableStateOf(false) }
     var showChangelogBottomSheet by remember { mutableStateOf(false) }
     var showBetaInfoBottomSheet by remember { mutableStateOf(false) }
+    var showScanSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val betaSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
@@ -150,6 +151,12 @@ fun HomeScreen(
                     },
                     onBetaClick = {
                         showBetaInfoBottomSheet = true
+                    },
+                    onScanClick = {
+                        showOptionsBottomSheet = false
+                        showChangelogBottomSheet = false
+                        showBetaInfoBottomSheet = false
+                        showScanSheet = true
                     }
                 )
             }
@@ -270,6 +277,19 @@ fun HomeScreen(
             sheetState = betaSheetState
         ) {
             BetaInfoBottomSheet()
+        }
+    }
+    if (showScanSheet) {
+        val sheetStateLocal = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showScanSheet = false },
+            sheetState = sheetStateLocal
+        ) {
+            ScanQrSheet(onImportInvite = { invite ->
+                scope.launch {
+                    playerViewModel.importPlaylistFromInvite(invite)
+                }
+            }, onClose = { showScanSheet = false })
         }
     }
 }
